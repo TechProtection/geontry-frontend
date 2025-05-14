@@ -1,7 +1,9 @@
-
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Home, BarChart, Users, Settings, HelpCircle, User, Bell, Tv, BarChart2 } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Home, BarChart, Users, Settings, HelpCircle, User, Bell, Tv, BarChart2, LogOut } from 'lucide-react';
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { toast } from '@/hooks/use-toast';
 
 const NavItem = ({ to, icon: Icon, label, exact = false }: {
   to: string;
@@ -26,6 +28,35 @@ const NavItem = ({ to, icon: Icon, label, exact = false }: {
 };
 
 const Sidebar: React.FC = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    // Primero limpiar localStorage manualmente para evitar problemas
+    window.localStorage.removeItem('supabase.auth.token');
+    window.localStorage.removeItem('sb-session');
+    
+    // Luego intentar cerrar sesión normalmente
+    await signOut();
+    
+    // Navegar al login incluso si algo salió mal con el signOut
+    navigate("/login");
+    
+    // Notificar al usuario
+    toast({
+      title: "Sesión cerrada",
+      description: "Has cerrado sesión correctamente.",
+    });
+  };
+
+  // Agregar un manejador de emergencia para cuando el botón normal no funcione
+  const handleForceSignOut = () => {
+    // Limpiar todo el localStorage
+    window.localStorage.clear();
+    // Redireccionar a la página de login
+    window.location.href = '/login';
+  };
+
   return (
     <aside className="w-64 bg-sidebar-background border-r border-border shrink-0 hidden md:block">
       <div className="flex flex-col h-full">
@@ -44,6 +75,16 @@ const Sidebar: React.FC = () => {
               <NavItem to="/support" icon={HelpCircle} label="Support" />
               <NavItem to="/profile" icon={User} label="Profile" />
             </nav>
+          </div>
+          <div className="mt-auto pt-4 border-t border-border space-y-2">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-red-500 hover:bg-red-500/10 hover:text-red-500"
+              onClick={handleSignOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Cerrar sesión
+            </Button>
           </div>
         </div>
       </div>

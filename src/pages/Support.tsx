@@ -160,7 +160,7 @@ const Support: React.FC = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-md border border-border">
                 <Phone className="h-5 w-5 text-techguard-500" />
-                <span>+1 (800) 555-0123</span>
+                <span>+51 999 999 999</span>
               </div>
               
               <div className="flex items-center gap-3 p-3 rounded-md border border-border">
