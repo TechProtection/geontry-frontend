@@ -19,7 +19,7 @@ Asegúrate de tener instalado:
    Usa el siguiente comando para clonar el repositorio:
 
    ```sh
-   git clone <URL_DEL_REPOSITORIO>
+   git clone https://github.com/TechProtection/geontry-frontend
    ```
 
 2. **Navega al directorio del proyecto**  
