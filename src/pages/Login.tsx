@@ -15,67 +15,159 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated) {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [isAuthenticated, navigate]);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  // Función para crear perfil después del registro exitoso  
+  const createUserProfile = async (userId: string, userData: { email: string; full_name: string }) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([{
+          id: userId,
+          email: userData.email,
+          full_name: userData.full_name,
+          role: 'USER',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        // Si el perfil ya existe, es OK
+        if (error.code !== '23505') { // 23505 = unique violation
+          throw error;
+        }
+        console.log('Profile already exists, skipping creation');
+      } else {
+        console.log('Profile created successfully:', data);
+      }
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      // No lanzar error aquí para no interrumpir el flujo de registro
+    }
+  };  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {      if (isSignUp) {
-        // Registro
+    try {
+      if (isSignUp) {
+        // Validaciones básicas
+        if (!fullName.trim()) {
+          throw new Error("El nombre completo es requerido");
+        }
+        
+        if (password.length < 6) {
+          throw new Error("La contraseña debe tener al menos 6 caracteres");
+        }
+
+        // Registro con Supabase Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: {
-              full_name: fullName || email.split('@')[0]
+              full_name: fullName.trim()
             }
           }
         });
 
         if (authError) throw authError;
         
-        // Si el registro fue exitoso, crear el perfil del usuario
+        // Si el usuario fue creado exitosamente
         if (authData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              full_name: fullName || email.split('@')[0],
-              email: email,
-              avatar_url: null,
-              role: 'USER',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+          // Intentar crear el perfil inmediatamente (para usuarios confirmados automáticamente)
+          if (authData.user.email_confirmed_at) {
+            await createUserProfile(authData.user.id, {
+              email: email.trim(),
+              full_name: fullName.trim()
             });
-
-          if (profileError) throw profileError;
+            
+            toast({
+              title: "Registro exitoso",
+              description: "Tu cuenta ha sido creada. Redirigiendo...",
+            });
+            
+            // Esperar un momento para que el contexto se actualice
+            setTimeout(() => {
+              navigate("/");
+            }, 1000);
+          } else {
+            toast({
+              title: "Confirma tu email",
+              description: "Por favor verifica tu correo electrónico para activar tu cuenta.",
+            });
+          }
         }
-
-        toast({
-          title: "Registro exitoso",
-          description: "Por favor verifica tu correo electrónico para confirmar tu cuenta.",
-        });
+        
+        // Resetear formulario
+        setEmail("");
+        setPassword("");
+        setFullName("");
+        
       } else {
         // Inicio de sesión
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
           password,
         });
 
         if (error) throw error;
+        
+        // Si el usuario se autenticó pero no tiene perfil, crearlo
+        if (data.user) {
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (!existingProfile) {
+            await createUserProfile(data.user.id, {
+              email: data.user.email || email.trim(),
+              full_name: data.user.user_metadata?.full_name || email.split('@')[0]
+            });
+          }
+        }
+        
+        toast({
+          title: "Bienvenido",
+          description: "Has iniciado sesión correctamente.",
+        });
+        
         navigate("/");
       }
     } catch (error: any) {
+      console.error("Auth error:", error);
+      
+      let errorMessage = "Ocurrió un error durante la autenticación";
+      
+      // Manejar errores específicos
+      if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Por favor confirma tu correo electrónico antes de iniciar sesión.";
+      } else if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Credenciales incorrectas. Verifica tu email y contraseña.";
+      } else if (error.message.includes("User already registered")) {
+        errorMessage = "Este email ya está registrado. Intenta iniciar sesión.";
+      } else if (error.message.includes("Email address is already")) {
+        errorMessage = "Este email ya está registrado. Intenta iniciar sesión.";
+      } else if (error.message.includes("Password should be at least")) {
+        errorMessage = "La contraseña debe tener al menos 6 caracteres.";
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Por favor ingresa un email válido.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Ocurrió un error durante la autenticación",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

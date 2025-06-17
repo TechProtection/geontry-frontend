@@ -11,124 +11,86 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw, Edit, Trash2, LogOut, User } from 'lucide-react';
+import { useProfileData } from '@/hooks/use-data';
 
-const ProfilePage: React.FC = () => {
-  const { user, profile, signOut, refreshProfile } = useAuth();
+const ProfilePage: React.FC = () => {  const { 
+    user, 
+    profile, 
+    signOut, 
+    loading: authLoading, 
+    refreshProfile,
+    profileLoading: contextProfileLoading,
+    profileError: contextProfileError 
+  } = useAuth();
   const navigate = useNavigate();
   
-  const [editDialogOpen, setEditDialogOpen] = useState(false);  const [editForm, setEditForm] = useState({
+  // Usar el hook personalizado para datos del perfil con más control
+  const { 
+    profile: hookProfile, 
+    loading: profileLoading, 
+    error: profileError,
+    updateProfile,
+    refreshProfile: refreshProfileData,
+    lastFetch
+  } = useProfileData(user?.id);
+  
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
     full_name: '',
     avatar_url: '',
   });
-  const [localLoading, setLocalLoading] = useState(true);
-  const [retryCount, setRetryCount] = useState(0);
+  // Usar el perfil del contexto (ya optimizado) prioritariamente
+  const currentProfile = profile;
+  const isLoading = authLoading || contextProfileLoading;
 
-  // Función para cargar el perfil con reintento automático
-  const loadProfileWithRetry = async () => {
-    setLocalLoading(true);
-    try {
-      if (user) {
-        console.log('Loading profile for user:', user.id);
-        const profileData = await refreshProfile();
-        
-        if (!profileData && retryCount < 2) {
-          console.log(`Retrying profile load. Attempt: ${retryCount + 1}`);
-          setRetryCount(prev => prev + 1);
-          
-          // Si el perfil no se cargó, esperamos un momento y volvemos a intentar
-          setTimeout(() => {
-            loadProfileWithRetry();
-          }, 1000);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    } finally {
-      // Finalizar carga local después de un tiempo para no bloquear la UI
-      setTimeout(() => {
-        setLocalLoading(false);
-      }, 800);
-    }
-  };
-
-  // Efecto para cargar el perfil al montar el componente
+  // Actualizar formulario cuando el perfil esté disponible
   useEffect(() => {
-    loadProfileWithRetry();
-    
-    // Timeout de seguridad para evitar la carga infinita
-    const timeoutId = setTimeout(() => {
-      setLocalLoading(false);
-    }, 5000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [user]);
-  // Actualizar editForm cuando el perfil esté disponible
-  useEffect(() => {
-    if (profile) {
-      console.log('Setting edit form with profile data:', profile);
+    if (currentProfile) {
       setEditForm({
-        full_name: profile.full_name || '',
-        avatar_url: profile.avatar_url || '',
+        full_name: currentProfile.full_name || '',
+        avatar_url: currentProfile.avatar_url || '',
       });
     }
-  }, [profile]);
-
-  const getInitials = (fullName: string | null | undefined) => {
-    if (!fullName) return user?.email?.charAt(0).toUpperCase() || 'U';
-    const names = fullName.split(' ');
-    if (names.length >= 2) {
-      return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+  }, [currentProfile]);
+  const handleRefresh = async () => {
+    try {
+      await refreshProfile();
+      toast({
+        title: "Perfil actualizado",
+        description: "Los datos del perfil se han actualizado correctamente.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el perfil",
+        variant: "destructive",
+      });
     }
-    return fullName.charAt(0).toUpperCase();
   };
-
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  // Función para manejar la recarga manual del perfil
-  const handleManualRefresh = async () => {
-    setLocalLoading(true);
-    await refreshProfile();
-    setTimeout(() => {
-      setLocalLoading(false);
-    }, 800);
-  };
-
-  const handleForceReset = () => {
-    localStorage.clear();
-    window.location.reload();
-  };
-
-  const handleForceSignOut = () => {
-    window.localStorage.clear();
-    window.location.href = '/login';
-  };
-
   const handleSubmit = async () => {
     try {
       if (!user?.id) {
         throw new Error("Usuario no identificado");
-      }      const { error } = await supabase
+      }
+
+      const { data, error } = await supabase
         .from('profiles')
         .update({
           full_name: editForm.full_name,
           avatar_url: editForm.avatar_url,
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
 
       if (error) throw error;
-      
+
+      // Refrescar el perfil del contexto
       await refreshProfile();
+
       setEditDialogOpen(false);
-      
       toast({
         title: "Perfil actualizado",
         description: "Tu perfil ha sido actualizado exitosamente.",
@@ -184,15 +146,34 @@ const ProfilePage: React.FC = () => {
   };
 
   // Pantalla de carga
-  if (localLoading) {
+  if (isLoading) {
     return (
       <MainLayout>
-        <div className="h-full flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p>Cargando perfil...</p>
-            <Button variant="link" onClick={handleForceReset} size="sm">
-              ¿Problemas al cargar? Haz clic aquí
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-muted-foreground">Cargando perfil...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+  // Error en la carga del perfil
+  if (contextProfileError && !currentProfile) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="text-red-500">
+              <RefreshCw className="h-12 w-12" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Error al cargar el perfil</h3>
+              <p className="text-muted-foreground">{contextProfileError}</p>
+            </div>
+            <Button onClick={handleRefresh} variant="outline">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reintentar
             </Button>
           </div>
         </div>
@@ -200,171 +181,197 @@ const ProfilePage: React.FC = () => {
     );
   }
 
-  // Verificar si tenemos los datos necesarios
-  if (!user) {
+  // Mostrar información de depuración si no hay perfil
+  if (!currentProfile) {
     return (
       <MainLayout>
-        <div className="container mx-auto py-6 max-w-4xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Error al cargar perfil</CardTitle>
-              <CardDescription>No se pudo cargar la información del usuario</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>No se ha detectado una sesión de usuario válida.</p>
-            </CardContent>
-            <CardFooter>
-              <Button onClick={handleForceReset}>Reiniciar sesión</Button>
-              <Button variant="outline" className="ml-2" onClick={() => navigate("/login")}>
-                Volver al inicio de sesión
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="text-yellow-500">
+              <RefreshCw className="h-12 w-12" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Perfil no encontrado</h3>
+              <p className="text-muted-foreground">
+                No se pudo cargar la información del perfil
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Usuario ID: {user?.id || 'No disponible'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Última actualización: {lastFetch ? new Date(lastFetch).toLocaleString() : 'Nunca'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleRefresh} variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reintentar
               </Button>
-            </CardFooter>
-          </Card>
+              <Button onClick={handleSignOut} variant="destructive">
+                Cerrar sesión
+              </Button>
+            </div>
+          </div>
         </div>
       </MainLayout>
     );
   }
 
-  // Contenido principal cuando los datos están disponibles
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <MainLayout>
-      <div className="container mx-auto py-6 max-w-4xl">
-        <div className="grid grid-cols-1 gap-6">
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Mi Perfil</h1>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Actualizar
+          </Button>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Información del Perfil */}
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">                
-                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-                  <Avatar className="h-20 w-20 border-4 border-background">
-                    {profile?.avatar_url ? (
-                      <AvatarImage src={profile.avatar_url} alt={profile.full_name || ''} />
-                    ) : (
-                      <AvatarFallback className="text-2xl bg-primary">{getInitials(profile?.full_name)}</AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div className="text-center sm:text-left">
-                    <CardTitle className="text-2xl">{profile?.full_name || user.email?.split('@')[0] || 'Usuario'}</CardTitle>
-                    <CardDescription>{user.email}</CardDescription>
-                    <div className="mt-2 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs inline-block">
-                      {profile?.role || 'USER'}
-                    </div>
-                  </div>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={handleManualRefresh} 
-                  className="rounded-full h-8 w-8 p-0"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  <span className="sr-only">Recargar perfil</span>
-                </Button>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Información Personal
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Información Personal</h3>                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Nombre completo</p>
-                      <p>{profile?.full_name || 'No establecido'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
-                      <p>{user.email}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">ID</p>
-                      <p className="text-xs font-mono">{user.id}</p>
-                    </div>
-                  </div>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={currentProfile.avatar_url || undefined} />
+                  <AvatarFallback className="text-lg">
+                    {getInitials(currentProfile.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-1">
+                  <h3 className="text-xl font-semibold">{currentProfile.full_name}</h3>
+                  <p className="text-sm text-muted-foreground">{currentProfile.email}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Rol: {currentProfile.role}
+                  </p>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Información de Cuenta</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Creado el</p>
-                      <p>{profile?.created_at ? formatDate(profile.created_at) : 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Última actualización</p>
-                      <p>{profile?.updated_at ? formatDate(profile.updated_at) : 'N/A'}</p>
-                    </div>
+              </div>
+              
+              <div className="pt-4 border-t">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Fecha de registro</p>
+                    <p>{new Date(currentProfile.created_at || '').toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Última actualización</p>
+                    <p>{new Date(currentProfile.updated_at || '').toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-              <Button variant="outline" onClick={() => setEditDialogOpen(true)}>
+            <CardFooter>
+              <Button onClick={() => setEditDialogOpen(true)} className="w-full">
+                <Edit className="h-4 w-4 mr-2" />
                 Editar Perfil
               </Button>
-              
+            </CardFooter>
+          </Card>
+
+          {/* Acciones */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Acciones</CardTitle>
+              <CardDescription>
+                Gestiona tu cuenta y configuraciones
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <Button 
+                onClick={handleSignOut} 
                 variant="outline" 
-                className="border-blue-500 text-blue-500 hover:bg-blue-500/10"
-                onClick={handleSignOut}
+                className="w-full justify-start"
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Cerrar Sesión
               </Button>
               
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive">Eliminar Cuenta</Button>
+                  <Button variant="destructive" className="w-full justify-start">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar Cuenta
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Esto eliminará permanentemente tu cuenta
-                      y eliminará tus datos de nuestros servidores.
+                      Esta acción no se puede deshacer. Eliminará permanentemente tu cuenta
+                      y todos los datos asociados de nuestros servidores.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteAccount}>Eliminar Cuenta</AlertDialogAction>
+                    <AlertDialogAction 
+                      onClick={handleDeleteAccount}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Eliminar cuenta
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </CardFooter>
+            </CardContent>
           </Card>
         </div>
+
+        {/* Dialog de Edición */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Editar Perfil</DialogTitle>
+              <DialogDescription>
+                Actualiza tu información personal aquí. Los cambios se guardarán automáticamente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="full_name">Nombre completo</Label>
+                <Input
+                  id="full_name"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                  placeholder="Tu nombre completo"
+                />
+              </div>
+              <div>
+                <Label htmlFor="avatar_url">URL del Avatar</Label>
+                <Input
+                  id="avatar_url"
+                  value={editForm.avatar_url}
+                  onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
+                  placeholder="https://ejemplo.com/avatar.jpg"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSubmit}>
+                Guardar cambios
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-      
-      {/* Diálogo para editar perfil */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Perfil</DialogTitle>
-            <DialogDescription>
-              Actualiza tu información de perfil aquí.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">            <div className="grid gap-2">
-              <Label htmlFor="fullName">Nombre completo</Label>
-              <Input
-                id="fullName"
-                value={editForm.full_name || ''}
-                onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
-                placeholder="Nombre completo"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="avatar">URL de Avatar</Label>
-              <Input
-                id="avatar"
-                value={editForm.avatar_url || ''}
-                onChange={(e) => setEditForm({...editForm, avatar_url: e.target.value})}
-                placeholder="https://ejemplo.com/avatar.jpg"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit}>Guardar cambios</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 };
