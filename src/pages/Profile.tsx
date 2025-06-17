@@ -17,9 +17,8 @@ const ProfilePage: React.FC = () => {
   const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editForm, setEditForm] = useState({
-    username: '',
+  const [editDialogOpen, setEditDialogOpen] = useState(false);  const [editForm, setEditForm] = useState({
+    full_name: '',
     avatar_url: '',
   });
   const [localLoading, setLocalLoading] = useState(true);
@@ -64,21 +63,24 @@ const ProfilePage: React.FC = () => {
     
     return () => clearTimeout(timeoutId);
   }, [user]);
-
   // Actualizar editForm cuando el perfil esté disponible
   useEffect(() => {
     if (profile) {
       console.log('Setting edit form with profile data:', profile);
       setEditForm({
-        username: profile.username || '',
+        full_name: profile.full_name || '',
         avatar_url: profile.avatar_url || '',
       });
     }
   }, [profile]);
 
-  const getInitials = (username: string | null | undefined) => {
-    if (!username) return user?.email?.charAt(0).toUpperCase() || 'U';
-    return username.charAt(0).toUpperCase();
+  const getInitials = (fullName: string | null | undefined) => {
+    if (!fullName) return user?.email?.charAt(0).toUpperCase() || 'U';
+    const names = fullName.split(' ');
+    if (names.length >= 2) {
+      return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+    }
+    return fullName.charAt(0).toUpperCase();
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -113,12 +115,10 @@ const ProfilePage: React.FC = () => {
     try {
       if (!user?.id) {
         throw new Error("Usuario no identificado");
-      }
-
-      const { error } = await supabase
+      }      const { error } = await supabase
         .from('profiles')
         .update({
-          username: editForm.username,
+          full_name: editForm.full_name,
           avatar_url: editForm.avatar_url,
           updated_at: new Date().toISOString()
         })
@@ -232,20 +232,20 @@ const ProfilePage: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start">                
                 <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
                   <Avatar className="h-20 w-20 border-4 border-background">
                     {profile?.avatar_url ? (
-                      <AvatarImage src={profile.avatar_url} alt={profile.username || ''} />
+                      <AvatarImage src={profile.avatar_url} alt={profile.full_name || ''} />
                     ) : (
-                      <AvatarFallback className="text-2xl bg-primary">{getInitials(profile?.username)}</AvatarFallback>
+                      <AvatarFallback className="text-2xl bg-primary">{getInitials(profile?.full_name)}</AvatarFallback>
                     )}
                   </Avatar>
                   <div className="text-center sm:text-left">
-                    <CardTitle className="text-2xl">{profile?.username || user.email?.split('@')[0] || 'Usuario'}</CardTitle>
+                    <CardTitle className="text-2xl">{profile?.full_name || user.email?.split('@')[0] || 'Usuario'}</CardTitle>
                     <CardDescription>{user.email}</CardDescription>
                     <div className="mt-2 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs inline-block">
-                      Usuario
+                      {profile?.role || 'USER'}
                     </div>
                   </div>
                 </div>
@@ -263,11 +263,10 @@ const ProfilePage: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Información Personal</h3>
-                  <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mb-4">Información Personal</h3>                  <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Nombre de usuario</p>
-                      <p>{profile?.username || 'No establecido'}</p>
+                      <p className="text-sm text-muted-foreground">Nombre completo</p>
+                      <p>{profile?.full_name || 'No establecido'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Email</p>
@@ -339,14 +338,13 @@ const ProfilePage: React.FC = () => {
               Actualiza tu información de perfil aquí.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="username">Nombre de usuario</Label>
+          <div className="grid gap-4 py-4">            <div className="grid gap-2">
+              <Label htmlFor="fullName">Nombre completo</Label>
               <Input
-                id="username"
-                value={editForm.username || ''}
-                onChange={(e) => setEditForm({...editForm, username: e.target.value})}
-                placeholder="Nombre de usuario"
+                id="fullName"
+                value={editForm.full_name || ''}
+                onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
+                placeholder="Nombre completo"
               />
             </div>
             <div className="grid gap-2">

@@ -49,7 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   }
-
   const createProfile = async (userId: string) => {
     try {
       // Verificamos nuevamente que tenemos un userId válido
@@ -57,8 +56,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const newProfile = {
         id: userId,
-        username: user?.email?.split('@')[0] || null,
+        full_name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario',
+        email: user?.email || '',
         avatar_url: null,
+        role: 'USER' as const,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };

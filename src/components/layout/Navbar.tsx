@@ -8,10 +8,13 @@ import { useNavigate } from 'react-router-dom';
 const Navbar = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
-
-  const getInitials = (username: string | null | undefined) => {
-    if (!username) return user?.email?.charAt(0).toUpperCase() || 'U';
-    return username.charAt(0).toUpperCase();
+  const getInitials = (fullName: string | null | undefined) => {
+    if (!fullName) return user?.email?.charAt(0).toUpperCase() || 'U';
+    const names = fullName.split(' ');
+    if (names.length >= 2) {
+      return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+    }
+    return fullName.charAt(0).toUpperCase();
   };
 
   const handleSignOut = async () => {
@@ -40,16 +43,15 @@ const Navbar = () => {
           >
             <Bell className="h-5 w-5" />
           </Button>
-          
-          <DropdownMenu>
+            <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center gap-2 cursor-pointer">
-                <span className="hidden sm:inline-block">{profile?.username || user?.email?.split('@')[0] || 'Usuario'}</span>
+                <span className="hidden sm:inline-block">{profile?.full_name || user?.email?.split('@')[0] || 'Usuario'}</span>
                 <Avatar className="h-8 w-8">
                   {profile?.avatar_url ? (
-                    <AvatarImage src={profile.avatar_url} alt={profile?.username || ''} />
+                    <AvatarImage src={profile.avatar_url} alt={profile?.full_name || ''} />
                   ) : (
-                    <AvatarFallback className="bg-blue-600">{getInitials(profile?.username)}</AvatarFallback>
+                    <AvatarFallback className="bg-blue-600">{getInitials(profile?.full_name)}</AvatarFallback>
                   )}
                 </Avatar>
               </div>

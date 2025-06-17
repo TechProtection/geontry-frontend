@@ -7,58 +7,164 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          operationName?: string
+          query?: string
+          variables?: Json
+          extensions?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
+      devices: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          profile_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          profile_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          profile_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_user_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      locations: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          id: string
+          latitude: number
+          longitude: number
+          profile_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          latitude: number
+          longitude: number
+          profile_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
-          created_at: string
+          created_at: string | null
+          email: string
+          full_name: string
           id: string
-          updated_at: string
-          username: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
+          email: string
+          full_name: string
           id: string
-          updated_at?: string
-          username?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
-          created_at?: string
+          created_at?: string | null
+          email?: string
+          full_name?: string
           id?: string
-          updated_at?: string
-          username?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string | null
         }
         Relationships: []
       }
-      user_activities: {
+      sensors: {
         Row: {
-          created_at: string
-          device: string
+          created_at: string | null
+          data_type: string
+          device_id: string
           id: string
-          location: string
-          type: string
-          user_id: string
+          name: string
+          unit: string
         }
         Insert: {
-          created_at?: string
-          device: string
+          created_at?: string | null
+          data_type: string
+          device_id: string
           id?: string
-          location: string
-          type: string
-          user_id: string
+          name: string
+          unit: string
         }
         Update: {
-          created_at?: string
-          device?: string
+          created_at?: string | null
+          data_type?: string
+          device_id?: string
           id?: string
-          location?: string
-          type?: string
-          user_id?: string
+          name?: string
+          unit?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sensors_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -68,7 +174,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_role: "USER" | "ADMIN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -104,6 +210,11 @@ export type Tables<
       ? R
       : never
     : never
+
+export type Profile = Tables<"profiles">;
+export type Device = Tables<"devices">;
+export type Location = Tables<"locations">;
+export type Sensor = Tables<"sensors">;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
@@ -182,9 +293,12 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  public: {
+  graphql_public: {
     Enums: {},
   },
+  public: {
+    Enums: {
+      user_role: ["USER", "ADMIN"],
+    },
+  },
 } as const
-
-export type Profile = Database['public']['Tables']['profiles']['Row']

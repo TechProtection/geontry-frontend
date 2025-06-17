@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
@@ -27,12 +27,16 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      if (isSignUp) {
+    try {      if (isSignUp) {
         // Registro
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName || email.split('@')[0]
+            }
+          }
         });
 
         if (authError) throw authError;
@@ -43,8 +47,10 @@ const Login = () => {
             .from('profiles')
             .insert({
               id: authData.user.id,
-              username: username || email.split('@')[0], // Usar parte del email como username por defecto
+              full_name: fullName || email.split('@')[0],
+              email: email,
               avatar_url: null,
+              role: 'USER',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString()
             });
@@ -107,19 +113,18 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleAuth}>
-            <CardContent className="space-y-4">
-              {isSignUp && (
+            <CardContent className="space-y-4">              {isSignUp && (
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="text-zinc-300">
-                    Nombre de usuario
+                  <Label htmlFor="fullName" className="text-zinc-300">
+                    Nombre completo
                   </Label>
                   <Input
-                    id="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
                     required={isSignUp}
                     className="bg-zinc-800 border-zinc-700 text-white"
-                    placeholder="nombre_usuario"
+                    placeholder="Tu nombre completo"
                   />
                 </div>
               )}
