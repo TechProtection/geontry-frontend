@@ -25,7 +25,7 @@ const Navbar = () => {
   return (
     <header className="border-b border-border bg-background">
       <div className="flex h-14 items-center px-4 gap-4 justify-between">
-        <div className="font-bold text-xl">GeoEntry</div>
+        <div className="font-bold text-xl"> </div>
         
         <div className="flex items-center gap-2">
           <Button 
