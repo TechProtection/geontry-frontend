@@ -9,15 +9,16 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 // Contextos
-import { AuthProvider } from './contexts/AuthContextNew';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContextNew';
 
 // Componentes
-import ProtectedRoute from './components/ProtectedRouteNew';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/layout/LayoutNew';
+import AuthDebugComponent from './components/AuthDebugComponent';
 
 // Páginas
-import LoginPage from './pages/LoginPageNew';
+import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/DashboardNew';
 import LocationsPage from './pages/LocationsPage';
 import DevicesPage from './pages/DevicesPage';
@@ -52,8 +53,11 @@ const GeoEntryApp: React.FC = () => {
           <TooltipProvider>
             <Router>
             <Routes>
-              {/* Ruta de login */}
-              <Route path="/login" element={<LoginPage />} />
+                {/* Ruta de debug temporal */}
+                <Route path="/debug" element={<AuthDebugComponent />} />
+                
+                {/* Ruta de login */}
+                <Route path="/login" element={<LoginPage />} />
               
               {/* Ruta principal redirige a dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -79,6 +83,8 @@ const GeoEntryApp: React.FC = () => {
                 <Route path="events" element={<EventsPage />} />
                 <Route path="settings" element={<SettingsNew />} />
               </Route>
+
+              
             </Routes>
           </Router>
           

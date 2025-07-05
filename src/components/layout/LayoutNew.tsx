@@ -8,7 +8,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAuth } from '@/contexts/AuthContextNew';
+import { useAuth } from '@/contexts/AuthContext';
 import { useHealthCheck } from '@/hooks/useDashboard';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
@@ -27,7 +27,7 @@ import {
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { data: healthCheck } = useHealthCheck();
 
   const menuItems = [
@@ -126,15 +126,15 @@ const Sidebar: React.FC = () => {
               <User className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user.full_name}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <p className="text-sm font-medium truncate">{profile?.username || user?.email?.split('@')[0] || 'Usuario'}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
         )}
 
         {/* Logout */}
         <Button
-          onClick={logout}
+          onClick={() => signOut()}
           variant="outline"
           size="sm"
           className="w-full"

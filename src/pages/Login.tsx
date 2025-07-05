@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +14,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signIn, signUp } = useAuth();
 
   useEffect(() => {
     if (user) {
@@ -30,40 +29,14 @@ const Login = () => {
     try {
       if (isSignUp) {
         // Registro
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (authError) throw authError;
-        
-        // Si el registro fue exitoso, crear el perfil del usuario
-        if (authData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              username: username || email.split('@')[0], // Usar parte del email como username por defecto
-              avatar_url: null,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-
-          if (profileError) throw profileError;
-        }
-
+        await signUp(email, password, username);
         toast({
           title: "Registro exitoso",
           description: "Por favor verifica tu correo electrónico para confirmar tu cuenta.",
         });
       } else {
         // Inicio de sesión
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
+        await signIn(email, password);
         navigate("/");
       }
     } catch (error: any) {

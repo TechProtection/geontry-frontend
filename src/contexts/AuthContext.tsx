@@ -1,83 +1,28 @@
 /**
- * Contexto de autenticación
+ * Contexto de autenticación con Supabase
  */
 
-import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User as SupabaseUser, Session, AuthError, AuthChangeEvent } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
-interface User {
-  id: string;
-  full_name: string;
-  email: string;
-  role: 'USER' | 'ADMIN';
-  avatar_url?: string;
-}
+// Tipo de perfil basado en la base de datos de Supabase
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
-interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
+interface AuthContextType {
+  user: SupabaseUser | null;
+  profile: Profile | null;
+  session: Session | null;
   loading: boolean;
-  error: string | null;
+  signIn: (email: string, password: string) => Promise<{ error?: AuthError }>;
+  signUp: (email: string, password: string, username?: string) => Promise<{ error?: AuthError }>;
+  signOut: () => Promise<{ error?: AuthError }>;
+  refreshProfile: () => Promise<Profile | null>;
+  updateProfile: (updates: Partial<Profile>) => Promise<{ error?: Error }>;
 }
 
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  clearError: () => void;
-}
-
-const initialState: AuthState = {
-  user: null,
-  isAuthenticated: false,
-  loading: true,
-  error: null,
-};
-
-type AuthAction =
-  | { type: 'LOGIN_START' }
-  | { type: 'LOGIN_SUCCESS'; payload: User }
-  | { type: 'LOGIN_FAILURE'; payload: string }
-  | { type: 'LOGOUT' }
-  | { type: 'CLEAR_ERROR' }
-  | { type: 'SET_LOADING'; payload: boolean };
-
-const authReducer = (state: AuthState, action: AuthAction): AuthState => {
-  switch (action.type) {
-    case 'LOGIN_START':
-      return { ...state, loading: true, error: null };
-    case 'LOGIN_SUCCESS':
-      return {
-        ...state,
-        user: action.payload,
-        isAuthenticated: true,
-        loading: false,
-        error: null,
-      };
-    case 'LOGIN_FAILURE':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        loading: false,
-        error: action.payload,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        user: null,
-        isAuthenticated: false,
-        loading: false,
-        error: null,
-      };
-    case 'CLEAR_ERROR':
-      return { ...state, error: null };
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload };
-    default:
-      return state;
-  }
-};
-
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -92,95 +37,38 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Simular verificación de autenticación al cargar
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Simular verificación de token almacenado
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          // En una implementación real, verificaríamos el token con la API
-          // Por ahora, simulamos un usuario autenticado
-          const mockUser: User = {
-            id: '1',
-            full_name: 'Usuario Demo',
-            email: 'demo@geoentry.com',
-            role: 'ADMIN',
-            avatar_url: undefined,
-          };
-          dispatch({ type: 'LOGIN_SUCCESS', payload: mockUser });
-        } else {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
-      } catch (error) {
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    dispatch({ type: 'LOGIN_START' });
-    
+  // Función para obtener el perfil del usuario
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
-      // Simular llamada a API de login
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Credenciales demo
-      if (email === 'demo@geoentry.com' && password === 'demo123') {
-        const user: User = {
-          id: '1',
-          full_name: 'Usuario Demo',
-          email: 'demo@geoentry.com',
-          role: 'ADMIN',
-          avatar_url: undefined,
-        };
-        
-        // Guardar token simulado
-        localStorage.setItem('auth_token', 'demo_token_123');
-        dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-      } else {
-        throw new Error('Credenciales inválidas');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
       }
+
+      return data;
     } catch (error) {
-      dispatch({ 
-        type: 'LOGIN_FAILURE', 
-        payload: error instanceof Error ? error.message : 'Error de autenticación' 
-      });
+      console.error('Error in fetchProfile:', error);
+      return null;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    dispatch({ type: 'LOGOUT' });
-  };
-
-  const clearError = () => {
-    dispatch({ type: 'CLEAR_ERROR' });
-  };
-
-  const value: AuthContextType = {
-    ...state,
-    login,
-    logout,
-    clearError,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-  }
-
-  const createProfile = async (userId: string) => {
+  // Función para crear un nuevo perfil
+  const createProfile = async (userId: string, username?: string): Promise<Profile | null> => {
     try {
-      // Verificamos nuevamente que tenemos un userId válido
-      if (!userId) return null;
-
       const newProfile = {
         id: userId,
-        username: user?.email?.split('@')[0] || null,
+        username: username || null,
         avatar_url: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -189,105 +77,226 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data, error } = await supabase
         .from('profiles')
         .insert([newProfile])
-        .select();
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating profile:', error);
         return null;
       }
 
-      console.log('Profile created successfully:', data[0]);
-      return data[0] as Profile;
+      return data;
     } catch (error) {
       console.error('Error in createProfile:', error);
       return null;
     }
-  }
+  };
 
-  const refreshProfile = async () => {
+  // Función para refrescar el perfil
+  const refreshProfile = async (): Promise<Profile | null> => {
     if (!user?.id) {
       console.warn('Cannot refresh profile: No user ID available');
       return null;
     }
     
-    console.log('Refreshing profile for user:', user.id);
     const profileData = await fetchProfile(user.id);
     
     if (profileData) {
-      console.log('Setting profile:', profileData);
       setProfile(profileData);
-    } else {
-      console.warn('Failed to refresh profile');
     }
     
     return profileData;
-  }
+  };
 
+  // Función para actualizar el perfil
+  const updateProfile = async (updates: Partial<Profile>): Promise<{ error?: Error }> => {
+    if (!user?.id) {
+      return { error: new Error('No hay usuario autenticado') };
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        return { error: new Error(error.message) };
+      }
+
+      if (data) {
+        setProfile(data);
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Error in updateProfile:', error);
+      return { error: error as Error };
+    }
+  };
+
+  // Función de inicio de sesión
+  const signIn = async (email: string, password: string): Promise<{ error?: AuthError }> => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Error signing in:', error);
+        return { error };
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Unexpected error in signIn:', error);
+      return { error: error as AuthError };
+    }
+  };
+
+  // Función de registro
+  const signUp = async (email: string, password: string, username?: string): Promise<{ error?: AuthError }> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username || null
+          }
+        }
+      });
+
+      if (error) {
+        console.error('Error signing up:', error);
+        return { error };
+      }
+
+      // Si el usuario se creó exitosamente, crear su perfil
+      if (data.user && !data.session) {
+        // Usuario creado pero necesita confirmar email
+        console.log('Usuario creado, necesita confirmar email');
+      } else if (data.user && data.session) {
+        // Usuario creado y logueado inmediatamente
+        await createProfile(data.user.id, username);
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Unexpected error in signUp:', error);
+      return { error: error as AuthError };
+    }
+  };
+
+  // Función de cierre de sesión
+  const signOut = async (): Promise<{ error?: AuthError }> => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        return { error };
+      }
+
+      // Limpiar estado local
+      setProfile(null);
+      setUser(null);
+      setSession(null);
+
+      return {};
+    } catch (error) {
+      console.error('Unexpected error in signOut:', error);
+      return { error: error as AuthError };
+    }
+  };
+
+  // Efecto para manejar cambios en el estado de autenticación
   useEffect(() => {
     let isMounted = true;
-    console.log('AuthContext initializing...');
-    
+
     const initAuth = async () => {
       try {
-        console.log('Getting session from Supabase');
+        setLoading(true);
+        
+        // Obtener sesión actual
         const { data: sessionData, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          if (isMounted) setLoading(false);
           return;
         }
         
         const currentSession = sessionData?.session;
-        console.log('Session retrieved:', currentSession ? 'Found' : 'None');
         
         if (currentSession && isMounted) {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Fetch profile with retry logic
-          const fetchProfileWithRetry = async (retries = 3, delay = 500) => {
-            for (let i = 0; i < retries; i++) {
-              console.log(`Fetching profile attempt ${i+1}/${retries}`);
-              const profileData = await fetchProfile(currentSession.user.id);
-              
-              if (profileData) {
-                if (isMounted) setProfile(profileData);
-                break;
-              } else if (i < retries - 1) {
-                console.log(`Retry in ${delay}ms`);
-                await new Promise(r => setTimeout(r, delay));
-                delay *= 2; // Exponential backoff
-              }
-            }
-          };
+          // Cargar perfil o crearlo si no existe
+          let profileData = await fetchProfile(currentSession.user.id);
           
-          await fetchProfileWithRetry();
+          if (!profileData) {
+            // Si no existe el perfil, crearlo
+            profileData = await createProfile(
+              currentSession.user.id,
+              currentSession.user.user_metadata?.username
+            );
+          }
+          
+          if (profileData && isMounted) {
+            setProfile(profileData);
+          }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     initAuth();
     
-    // Listen for auth changes
+    // Escuchar cambios en el estado de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log('Auth state changed:', event);
+        console.log('Auth state changed:', event, newSession?.user?.id);
+        
+        if (!isMounted) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        
+        if (newSession?.user) {
+          // Cargar perfil cuando el usuario se autentica
+          let profileData = await fetchProfile(newSession.user.id);
+          
+          // Si no existe el perfil (nuevo usuario), crearlo
+          if (!profileData) {
+            profileData = await createProfile(
+              newSession.user.id,
+              newSession.user.user_metadata?.username
+            );
+          }
+          
+          if (profileData && isMounted) {
+            setProfile(profileData);
+          }
+        } else {
+          // Limpiar perfil cuando el usuario se desautentica
+          setProfile(null);
+        }
         
         if (isMounted) {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          
-          if (newSession?.user) {
-            const profileData = await fetchProfile(newSession.user.id);
-            if (isMounted) setProfile(profileData);
-          } else {
-            if (isMounted) setProfile(null);
-          }
+          setLoading(false);
         }
       }
     );
@@ -299,45 +308,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const signOut = async () => {
-    try {
-      console.log('Signing out...');
-      // First clear state
-      setProfile(null);
-      setUser(null);
-      setSession(null);
-      
-      // Then sign out from Supabase
-      await supabase.auth.signOut();
-      
-      // Clear localStorage items related to auth
-      localStorage.removeItem('supabase.auth.token');
-      localStorage.removeItem('sb-session');
-      localStorage.removeItem('sb-access-token');
-      localStorage.removeItem('sb-refresh-token');
-      
-      console.log('Sign out complete');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  }
-
-  const value = {
-    session,
+  const value: AuthContextType = {
     user,
     profile,
-    signOut,
+    session,
     loading,
-    refreshProfile
-  }
+    signIn,
+    signUp,
+    signOut,
+    refreshProfile,
+    updateProfile,
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider')
-  }
-  return context
-}
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

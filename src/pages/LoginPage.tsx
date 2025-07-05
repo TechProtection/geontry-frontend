@@ -2,35 +2,76 @@
  * Página de login
  */
 
-import React, { useState } from 'react';
-import { useAuth } from '@/contexts/NewAuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, loading, error, clearError } = useAuth();
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { signIn, user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirigir si ya está autenticado
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    clearError();
+    setError('');
+    setIsLoading(true);
     
     if (!email || !password) {
+      setError('Por favor ingresa email y contraseña');
+      setIsLoading(false);
       return;
     }
 
     try {
-      await login(email, password);
-    } catch (error) {
-      // El error se maneja en el contexto
+      const result = await signIn(email, password);
+      
+      if (result.error) {
+        setError(result.error.message || 'Error al iniciar sesión');
+      } else {
+        toast.success('¡Bienvenido a GeoEntry!');
+        navigate('/dashboard');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Error inesperado al iniciar sesión');
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleDemoLogin = () => {
+    setEmail('demo@geoentry.com');
+    setPassword('demo123');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="text-lg text-muted-foreground">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
@@ -58,7 +99,7 @@ const LoginPage: React.FC = () => {
                   placeholder="tu@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -72,7 +113,7 @@ const LoginPage: React.FC = () => {
                     placeholder="Tu contraseña"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
+                    disabled={isLoading}
                     required
                   />
                   <Button
@@ -94,9 +135,9 @@ const LoginPage: React.FC = () => {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? (
+                {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                     Ingresando...
@@ -117,9 +158,17 @@ const LoginPage: React.FC = () => {
               <p className="text-sm text-muted-foreground">
                 Email: demo@geoentry.com
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-3">
                 Contraseña: demo123
               </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleDemoLogin}
+                className="w-full"
+              >
+                Cargar Credenciales Demo
+              </Button>
             </div>
           </CardContent>
         </Card>
