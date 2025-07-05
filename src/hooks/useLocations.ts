@@ -12,6 +12,8 @@ export const useLocations = () => {
     queryKey: ['locations'],
     queryFn: () => apiClient.getLocations(),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Reduce reintentos
+    refetchOnWindowFocus: false, // Evita refetch automático
   });
 };
 
@@ -20,6 +22,9 @@ export const useLocation = (id: string) => {
     queryKey: ['location', id],
     queryFn: () => apiClient.getLocationById(id),
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -29,6 +34,8 @@ export const useLocationStats = (id: string) => {
     queryFn: () => apiClient.getLocationStats(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -42,8 +49,8 @@ export const useCreateLocation = () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
       toast.success('Ubicación creada exitosamente');
     },
-    onError: (error) => {
-      toast.error('Error al crear la ubicación');
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al crear la ubicación');
       console.error('Error creating location:', error);
     },
   });
@@ -60,8 +67,8 @@ export const useUpdateLocation = () => {
       queryClient.invalidateQueries({ queryKey: ['location', variables.id] });
       toast.success('Ubicación actualizada exitosamente');
     },
-    onError: (error) => {
-      toast.error('Error al actualizar la ubicación');
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al actualizar la ubicación');
       console.error('Error updating location:', error);
     },
   });
@@ -74,69 +81,6 @@ export const useDeleteLocation = () => {
     mutationFn: (id: string) => apiClient.deleteLocation(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
-      toast.success('Ubicación eliminada exitosamente');
-    },
-    onError: (error) => {
-      toast.error('Error al eliminar la ubicación');
-      console.error('Error deleting location:', error);
-    },
-  });
-};
-
-/**
- * Hook para crear una nueva ubicación
- */
-export const useCreateLocation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: createLocation,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] });
-      queryClient.invalidateQueries({ queryKey: ['locations', 'active'] });
-      toast.success('Ubicación creada exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al crear la ubicación');
-      console.error('Error creating location:', error);
-    },
-  });
-};
-
-/**
- * Hook para actualizar una ubicación existente
- */
-export const useUpdateLocation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, ...data }: { id: string } & Parameters<typeof updateLocation>[1]) => 
-      updateLocation(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] });
-      queryClient.invalidateQueries({ queryKey: ['location', id] });
-      queryClient.invalidateQueries({ queryKey: ['locations', 'active'] });
-      toast.success('Ubicación actualizada exitosamente');
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Error al actualizar la ubicación');
-      console.error('Error updating location:', error);
-    },
-  });
-};
-
-/**
- * Hook para eliminar una ubicación
- */
-export const useDeleteLocation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: deleteLocation,
-    onSuccess: (_, locationId) => {
-      queryClient.invalidateQueries({ queryKey: ['locations'] });
-      queryClient.removeQueries({ queryKey: ['location', locationId] });
-      queryClient.invalidateQueries({ queryKey: ['locations', 'active'] });
       toast.success('Ubicación eliminada exitosamente');
     },
     onError: (error: any) => {

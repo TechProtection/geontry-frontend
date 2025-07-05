@@ -223,13 +223,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const initAuth = async () => {
       try {
-        setLoading(true);
-        
         // Obtener sesión actual
         const { data: sessionData, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
+          if (isMounted) setLoading(false);
           return;
         }
         
@@ -239,16 +238,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(currentSession);
           setUser(currentSession.user);
           
-          // Cargar perfil o crearlo si no existe
-          let profileData = await fetchProfile(currentSession.user.id);
-          
-          if (!profileData) {
-            // Si no existe el perfil, crearlo
-            profileData = await createProfile(
-              currentSession.user.id,
-              currentSession.user.user_metadata?.username
-            );
-          }
+          // Cargar perfil de forma más simple
+          const profileData = await fetchProfile(currentSession.user.id);
           
           if (profileData && isMounted) {
             setProfile(profileData);
@@ -265,34 +256,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     initAuth();
     
-    // Escuchar cambios en el estado de autenticación
+    // Listener para cambios de sesión - simplificado
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log('Auth state changed:', event, newSession?.user?.id);
-        
         if (!isMounted) return;
         
         setSession(newSession);
         setUser(newSession?.user ?? null);
+        setProfile(null);
         
         if (newSession?.user) {
-          // Cargar perfil cuando el usuario se autentica
-          let profileData = await fetchProfile(newSession.user.id);
-          
-          // Si no existe el perfil (nuevo usuario), crearlo
-          if (!profileData) {
-            profileData = await createProfile(
-              newSession.user.id,
-              newSession.user.user_metadata?.username
-            );
-          }
-          
+          // Cargar perfil para el nuevo usuario
+          const profileData = await fetchProfile(newSession.user.id);
           if (profileData && isMounted) {
             setProfile(profileData);
           }
-        } else {
-          // Limpiar perfil cuando el usuario se desautentica
-          setProfile(null);
         }
         
         if (isMounted) {
@@ -306,7 +284,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Sin dependencias para evitar re-inicializaciones
 
   const value: AuthContextType = {
     user,

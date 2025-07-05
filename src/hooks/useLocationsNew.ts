@@ -1,5 +1,5 @@
 /**
- * Hooks para gestión de ubicaciones usando la API real
+ * Hooks para gestión de ubicaciones usando la API real - Versión optimizada
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,7 +11,10 @@ export const useLocations = () => {
   return useQuery({
     queryKey: ['locations'],
     queryFn: () => apiClient.getLocations(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 1000, // 30 segundos
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -20,6 +23,9 @@ export const useLocation = (id: string) => {
     queryKey: ['location', id],
     queryFn: () => apiClient.getLocationById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -28,7 +34,9 @@ export const useLocationStats = (id: string) => {
     queryKey: ['location-stats', id],
     queryFn: () => apiClient.getLocationStats(id),
     enabled: !!id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 1 * 60 * 1000, // 1 minuto
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -42,8 +50,8 @@ export const useCreateLocation = () => {
       queryClient.invalidateQueries({ queryKey: ['locations'] });
       toast.success('Ubicación creada exitosamente');
     },
-    onError: (error) => {
-      toast.error('Error al crear la ubicación');
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al crear la ubicación');
       console.error('Error creating location:', error);
     },
   });

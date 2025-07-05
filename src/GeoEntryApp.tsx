@@ -15,7 +15,7 @@ import { ThemeProvider } from './contexts/ThemeContextNew';
 // Componentes
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/layout/LayoutNew';
-import AuthDebugComponent from './components/AuthDebugComponent';
+
 
 // Páginas
 import LoginPage from './pages/LoginPage';
@@ -27,17 +27,21 @@ import SettingsNew from './pages/SettingsNew';
 import InteractiveMap from './components/MapView';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
 
-// Configuración de React Query
+// Configuración de React Query - Optimizada para evitar carga infinita
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutos
-      gcTime: 10 * 60 * 1000, // 10 minutos
-      retry: 3,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 30 * 1000, // 30 segundos
+      gcTime: 2 * 60 * 1000, // 2 minutos (reducido)
+      retry: 1, // Solo 1 reintento
+      retryDelay: 500, // Delay más corto
+      refetchOnWindowFocus: false, // Evita refetch automático
+      refetchOnMount: false, // Evita refetch en mount si hay datos
+      refetchOnReconnect: false, // Evita refetch en reconexión
+      refetchInterval: false, // Sin polling automático
     },
     mutations: {
-      retry: 1,
+      retry: 0, // Sin reintentos para mutaciones
     },
   },
 });
@@ -53,8 +57,7 @@ const GeoEntryApp: React.FC = () => {
           <TooltipProvider>
             <Router>
             <Routes>
-                {/* Ruta de debug temporal */}
-                <Route path="/debug" element={<AuthDebugComponent />} />
+
                 
                 {/* Ruta de login */}
                 <Route path="/login" element={<LoginPage />} />

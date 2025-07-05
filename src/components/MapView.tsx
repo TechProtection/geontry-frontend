@@ -7,9 +7,9 @@ import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import { Icon, LatLngTuple } from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useLocations } from '@/hooks/useLocationsNew';
-import { useDevices } from '@/hooks/useDevicesNew';
-import { useProximityEvents } from '@/hooks/useProximityEventsNew';
+import { useLocationsSimple } from '@/hooks/useLocationsSimple';
+import { useDevicesSimple } from '@/hooks/useDevicesSimple';
+import { useProximityEventsSimple } from '@/hooks/useProximityEventsSimple';
 import { Location, Device } from '@/types';
 import { MapPin, Home, Smartphone, Activity } from 'lucide-react';
 
@@ -35,9 +35,9 @@ const InteractiveMap: React.FC = () => {
   const [mapCenter, setMapCenter] = useState<LatLngTuple>([-12.0677412, -77.0664982]);
   const [mapZoom, setMapZoom] = useState(13);
 
-  const { data: locations, isLoading: locationsLoading } = useLocations();
-  const { data: devices, isLoading: devicesLoading } = useDevices();
-  const { data: events } = useProximityEvents();
+  const { data: locations, isLoading: locationsLoading } = useLocationsSimple();
+  const { data: devices, isLoading: devicesLoading } = useDevicesSimple();
+  const { data: events } = useProximityEventsSimple();
 
   useEffect(() => {
     if (locations && locations.length > 0) {

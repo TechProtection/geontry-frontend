@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, MapPin, Smartphone, ArrowUpCircle, ArrowDownCircle, Search, Filter, Download } from 'lucide-react';
-import { useProximityEvents } from '@/hooks/useProximityEventsNew';
-import { useLocations } from '@/hooks/useLocationsNew';
-import { useDevices } from '@/hooks/useDevicesNew';
+import { useProximityEventsSimple } from '@/hooks/useProximityEventsSimple';
+import { useLocationsSimple } from '@/hooks/useLocationsSimple';
+import { useDevicesSimple } from '@/hooks/useDevicesSimple';
 import { ProximityEvent } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -22,9 +22,9 @@ const EventsPage: React.FC = () => {
   const [filterLocation, setFilterLocation] = useState<string>('all');
   const [filterDevice, setFilterDevice] = useState<string>('all');
   
-  const { data: events, isLoading: eventsLoading } = useProximityEvents();
-  const { data: locations } = useLocations();
-  const { data: devices } = useDevices();
+  const { data: events, isLoading: eventsLoading } = useProximityEventsSimple();
+  const { data: locations } = useLocationsSimple();
+  const { data: devices } = useDevicesSimple();
 
   const filteredEvents = events?.filter(event => {
     const deviceName = event.device?.name || 'Dispositivo desconocido';
@@ -60,10 +60,20 @@ const EventsPage: React.FC = () => {
 
   if (eventsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando eventos...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Eventos de Proximidad</h1>
+            <p className="text-muted-foreground">
+              Historial completo de entradas y salidas de dispositivos
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">Cargando eventos...</p>
+          </div>
         </div>
       </div>
     );

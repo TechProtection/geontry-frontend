@@ -1,5 +1,5 @@
 /**
- * Hooks para gestión de eventos de proximidad usando la API real
+ * Hooks para gestión de eventos de proximidad usando la API real - Versión optimizada
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -10,7 +10,10 @@ export const useProximityEvents = () => {
   return useQuery({
     queryKey: ['proximity-events'],
     queryFn: () => apiClient.getProximityEvents(),
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 30 * 1000, // 30 segundos
+    retry: 1,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
 
@@ -19,6 +22,9 @@ export const useProximityEvent = (id: string) => {
     queryKey: ['proximity-event', id],
     queryFn: () => apiClient.getProximityEventById(id),
     enabled: !!id,
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -27,7 +33,9 @@ export const useProximityEventsByDevice = (deviceId: string) => {
     queryKey: ['proximity-events', 'device', deviceId],
     queryFn: () => apiClient.getProximityEventsByDevice(deviceId),
     enabled: !!deviceId,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -36,7 +44,9 @@ export const useProximityEventsByLocation = (locationId: string) => {
     queryKey: ['proximity-events', 'location', locationId],
     queryFn: () => apiClient.getProximityEventsByLocation(locationId),
     enabled: !!locationId,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 30 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 };
 

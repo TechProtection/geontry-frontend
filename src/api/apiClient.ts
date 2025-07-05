@@ -2,7 +2,7 @@
  * Cliente API centralizado para GeoEntry
  */
 
-const API_BASE_URL = 'https://geoentry-rest-api.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_GEONTRY_BACKEND;
 
 interface ApiError {
   message: string;

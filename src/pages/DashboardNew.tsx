@@ -10,10 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import MapView from '@/components/MapView';
 import AdvancedAnalytics from '@/components/AdvancedAnalytics';
-import { useDashboardStats, useHealthCheck } from '@/hooks/useDashboard';
-import { useProximityEvents } from '@/hooks/useProximityEventsNew';
-import { useLocations } from '@/hooks/useLocationsNew';
-import { useDevices } from '@/hooks/useDevicesNew';
+import { useDashboardSimple } from '@/hooks/useDashboardSimple';
 import { 
   RefreshCw, 
   MapPin, 
@@ -36,21 +33,20 @@ import { es } from 'date-fns/locale';
 const Dashboard: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const { data: dashboardStats, refetch: refetchStats } = useDashboardStats();
-  const { data: healthCheck } = useHealthCheck();
-  const { data: events, refetch: refetchEvents } = useProximityEvents();
-  const { data: locations, refetch: refetchLocations } = useLocations();
-  const { data: devices, refetch: refetchDevices } = useDevices();
+  const { 
+    stats: dashboardStats, 
+    locations, 
+    devices, 
+    events, 
+    isLoading,
+    error,
+    refetch 
+  } = useDashboardSimple();
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([
-        refetchStats(),
-        refetchEvents(),
-        refetchLocations(),
-        refetchDevices(),
-      ]);
+      await refetch();
     } finally {
       setIsRefreshing(false);
     }
@@ -75,6 +71,60 @@ const Dashboard: React.FC = () => {
     return type === 'enter' ? 'text-green-600' : 'text-red-600';
   };
 
+  // Estado de carga mejorado
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Monitoreo y análisis de ubicaciones en tiempo real
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">Cargando dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Monitoreo y análisis de ubicaciones en tiempo real
+            </p>
+          </div>
+          <Button 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
+            size="sm"
+            variant="outline"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Reintentar
+          </Button>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">Error: {error}</p>
+            <Button onClick={handleRefresh}>
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -86,16 +136,6 @@ const Dashboard: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {healthCheck && (
-            <Badge variant={healthCheck.status === 'OK' ? 'default' : 'destructive'}>
-              {healthCheck.status === 'OK' ? (
-                <CheckCircle className="h-3 w-3 mr-1" />
-              ) : (
-                <AlertCircle className="h-3 w-3 mr-1" />
-              )}
-              {healthCheck.status}
-            </Badge>
-          )}
           <Button 
             onClick={handleRefresh} 
             disabled={isRefreshing}

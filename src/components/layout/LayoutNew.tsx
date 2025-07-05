@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHealthCheck } from '@/hooks/useDashboard';
+import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { 
   Home, 
@@ -29,6 +30,7 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
   const { user, profile, signOut } = useAuth();
   const { data: healthCheck } = useHealthCheck();
+  const { navigateToPage } = useAppNavigation();
 
   const menuItems = [
     {
@@ -87,10 +89,10 @@ const Sidebar: React.FC = () => {
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
         {menuItems.map((item) => (
-          <a
+          <button
             key={item.path}
-            href={item.path}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+            onClick={() => navigateToPage(item.path)}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
               item.active
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-foreground'
@@ -98,7 +100,7 @@ const Sidebar: React.FC = () => {
           >
             <item.icon className="h-5 w-5" />
             {item.label}
-          </a>
+          </button>
         ))}
       </nav>
 

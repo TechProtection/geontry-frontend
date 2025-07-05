@@ -7,18 +7,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useLocations } from '@/hooks/useLocationsNew';
-import { useProximityEvents } from '@/hooks/useProximityEventsNew';
+import LoadingSpinner from '@/components/ui/loading-spinner';
+import ErrorBoundary from '@/components/ui/error-boundary';
+import { SimpleLoading, SimpleError } from '@/components/ui/simple-states';
+import { useLocationsSimple } from '@/hooks/useLocationsSimple';
+import { useProximityEventsSimple } from '@/hooks/useProximityEventsSimple';
 import { MapPin, Home, Activity, Clock, Plus, Edit, Trash2, Navigation } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const LocationsPage: React.FC = () => {
-  const { data: locations, isLoading: locationsLoading } = useLocations();
-  const { data: events } = useProximityEvents();
+  const { data: locations, isLoading: locationsLoading, error: locationsError } = useLocationsSimple();
+  const { data: events, isLoading: eventsLoading } = useProximityEventsSimple();
 
   const getLocationStats = (locationId: string) => {
-    const locationEvents = events?.filter(e => e.home_location_id === locationId) || [];
+    if (!events) return {
+      totalEvents: 0,
+      recentEvents: 0,
+      isCurrentlyOccupied: false,
+      lastActivity: null,
+    };
+
+    const locationEvents = events.filter(e => e.home_location_id === locationId) || [];
     const recentEvents = locationEvents.filter(event => {
       const eventDate = new Date(event.created_at);
       const now = new Date();
@@ -36,16 +46,25 @@ const LocationsPage: React.FC = () => {
     };
   };
 
+  // Estados de carga y error mejorados
   if (locationsLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Ubicaciones</h1>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </div>
+      <SimpleLoading 
+        title="Ubicaciones"
+        description="Gestiona las ubicaciones monitoreadas por el sistema"
+        message="Cargando ubicaciones..."
+      />
+    );
+  }
+
+  if (locationsError) {
+    return (
+      <SimpleError
+        title="Ubicaciones"
+        description="Gestiona las ubicaciones monitoreadas por el sistema"
+        error={locationsError}
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 

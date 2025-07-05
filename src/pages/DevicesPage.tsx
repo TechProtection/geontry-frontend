@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Smartphone, Search, Plus, Edit, Trash2, Activity, MapPin, User, Calendar } from 'lucide-react';
-import { useDevices } from '@/hooks/useDevicesNew';
-import { useLocations } from '@/hooks/useLocationsNew';
-import { useProximityEvents } from '@/hooks/useProximityEventsNew';
+import { useDevicesSimple } from '@/hooks/useDevicesSimple';
+import { useLocationsSimple } from '@/hooks/useLocationsSimple';
+import { useProximityEventsSimple } from '@/hooks/useProximityEventsSimple';
 import { Device } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -19,9 +19,9 @@ const DevicesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   
-  const { data: devices, isLoading: devicesLoading } = useDevices();
-  const { data: locations } = useLocations();
-  const { data: events } = useProximityEvents();
+  const { data: devices, isLoading: devicesLoading } = useDevicesSimple();
+  const { data: locations } = useLocationsSimple();
+  const { data: events } = useProximityEventsSimple();
 
   const filteredDevices = devices?.filter(device =>
     device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,10 +62,20 @@ const DevicesPage: React.FC = () => {
 
   if (devicesLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Cargando dispositivos...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Dispositivos</h1>
+            <p className="text-muted-foreground">
+              Gestiona y monitorea todos los dispositivos del sistema
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="text-sm text-muted-foreground">Cargando dispositivos...</p>
+          </div>
         </div>
       </div>
     );
